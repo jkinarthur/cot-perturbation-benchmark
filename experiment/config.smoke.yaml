@@ -1,0 +1,37 @@
+random_seed: 7
+max_examples_per_dataset: 2
+temperatures: [0.0]
+bootstrap_resamples: 100
+
+faithfulness_verifier:
+  type: heuristic
+
+models:
+  - name: mock-baseline
+    provider: mock
+
+benchmarks:
+  - name: gsm8k
+    path: data/gsm8k.jsonl
+    category: logical_symbolic
+  - name: commonsenseqa
+    path: data/commonsenseqa.jsonl
+    category: semantic
+  - name: strategyqa
+    path: data/strategyqa.jsonl
+    category: semantic
+  - name: mmcot
+    path: data/mmcot.jsonl
+    category: multimodal
+
+perturbations:
+  types:
+    - lexical_paraphrase
+    - semantic_distractor
+    - intermediate_wrong_step
+    - skipped_step
+    - contradictory_evidence
+    - unit_value_change
+  positions: [beginning, middle, end]
+
+output_dir: outputs_smoke

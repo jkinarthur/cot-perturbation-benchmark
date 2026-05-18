@@ -1,0 +1,677 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{cite}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{url}
+\usepackage{enumitem}
+\usepackage{orcidlink}
+\usepackage{algorithmic}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+
+\begin{document}
+
+\title{Cognitive Stability of Chain-of-Thought Reasoning in Large Language Models Under Semantic Perturbation}
+
+\author{John~Kingsley~Arthur\,\orcidlink{0000-0001-8557-1336},~\IEEEmembership{Member,~IEEE,}
+	Kofi~Sarpong~Adu-Manu\,\orcidlink{0000-0003-0677-6523},
+	Xiangjun~Shen\,\orcidlink{0000-0002-3359-8972},
+	Stanley~Abhadiomhen\,\orcidlink{0000-0002-9509-1915},
+	and~Michael~Kelly~Osei\,\orcidlink{0009-0006-1966-1601}
+\thanks{J. K. Arthur is with Northeastern University, Toronto, ON, Canada (e-mail: arthur.joh@northeastern.edu).}%
+\thanks{K. S. Adu-Manu is with the Department of Computer Science, University of Ghana, Legon, Ghana.}%
+\thanks{X. Shen is with the School of Computer Science and Communication Engineering, Jiangsu University, Zhenjiang, China (e-mail: xjshen@ujs.edu.cn).}%
+\thanks{S. Abhadiomhen is a Postdoctoral Visitor with the Department of Electrical Engineering and Computer Science, Lassonde School of Engineering, York University, Toronto, ON, Canada.}%
+\thanks{M. K. Osei is with Northeastern University, Toronto, ON, Canada (e-mail: osei.micah@northeastern.edu).}%
+\thanks{Corresponding author: J. K. Arthur (arthur.joh@northeastern.edu).}}
+
+\maketitle
+
+\begin{abstract}
+Chain-of-thought (CoT) prompting improves final-answer accuracy on many reasoning tasks, yet benchmark accuracy alone does not establish whether reasoning behavior is cognitively stable. This paper treats CoT as an observable verbal reasoning trace, not direct evidence of internal cognition. We develop a rigorous framework for testing the semantic stability of CoT trajectories under controlled perturbations and define cognitive stability operationally as preservation of answer correctness, semantic coherence, and trajectory consistency under meaning-preserving changes. We introduce the Cognitive Collapse Index (CCI), a trajectory-level metric that quantifies reasoning degradation independent of final-answer correctness, and add complementary metrics for semantic drift, recovery ability, and faithfulness risk. The paper contributes a theory-grounded perturbation taxonomy, a quality-controlled perturbation generation pipeline, model-agnostic scoring procedures, and a full statistical reporting protocol for cross-model comparisons. The framework covers arithmetic, commonsense, multi-hop, and multimodal reasoning tasks. Unlike evaluation pipelines that collapse all behavior into one accuracy value, the proposed protocol separates output correctness from process robustness and surfaces decoupling cases where answers remain correct while reasoning collapses.
+\end{abstract}
+
+\begin{IEEEkeywords}
+cognitive machine intelligence, chain-of-thought, reasoning robustness, semantic perturbation, large language models, evaluation metrics, trustworthy AI
+\end{IEEEkeywords}
+
+\section{Introduction}
+Large language models (LLMs) have reached strong benchmark performance in reasoning-intensive tasks with chain-of-thought prompting \cite{wei2022cot,kojima2022zeroshot,wang2022selfconsistency}. However, most evaluation pipelines still score only the final answer \cite{cobbe2021gsm8k,hendrycks2021math,talmor2019commonsenseqa,talmor2020strategyqa}. This creates a blind spot: two systems can reach similar answer accuracy while exhibiting very different reasoning stability under semantically equivalent prompt variants.
+
+From a cognitive perspective, robust reasoning should be relatively invariant to representational changes that preserve meaning. Humans usually maintain logical structure across paraphrases, lexical substitutions, and abstraction shifts. By contrast, recent studies show that LLM behavior can be sensitive to prompt wording and format \cite{zhao2021calibrate,ribeiro2020checklist,si2023promptbench}. The same concern appears in faithfulness research, where generated rationales may not faithfully reflect latent decision mechanisms \cite{turpin2023unfaithful,lanham2023faithful}. Therefore, this paper does not interpret CoT as the model's true cognition; instead, CoT is treated as an externalized linguistic trace that may reveal, distort, or fail to reveal underlying reasoning.
+
+This paper presents a complete cognitive-stability framework for CoT evaluation under semantic perturbation. The framework addresses one core research question and three testable hypotheses:
+\begin{enumerate}[leftmargin=*]
+\item \textbf{RQ}: To what extent do LLMs preserve reasoning coherence, answer correctness, and semantic alignment when CoT reasoning is exposed to controlled semantic perturbations?
+\item \textbf{H1}: Larger or reasoning-specialized LLMs will show higher final-answer robustness under perturbation.
+\item \textbf{H2}: Final-answer accuracy and reasoning coherence will diverge, such that models can preserve answers while exhibiting unstable or unfaithful trajectories.
+\item \textbf{H3}: Perturbations injected in the middle of a reasoning chain will produce greater trajectory drift than equivalent perturbations injected at the beginning or end.
+\end{enumerate}
+
+\textbf{Contributions.} The paper contributes:
+\begin{enumerate}[leftmargin=*]
+\item A formal definition of cognitive stability for CoT reasoning under semantic perturbation.
+\item A six-category perturbation taxonomy with quality-control constraints.
+\item The Cognitive Collapse Index (CCI) and related metrics for answer-process decoupling.
+\item A reproducible multi-benchmark, multi-model evaluation and statistical analysis protocol.
+\item Publication-ready reporting templates (tables and figures) compatible with IEEE conference style.
+\end{enumerate}
+
+\section{Related Work}
+\subsection{Chain-of-Thought and Deliberative Prompting}
+CoT prompting \cite{wei2022cot} and zero-shot CoT \cite{kojima2022zeroshot} established that intermediate reasoning text can improve performance. Subsequent approaches, including self-consistency \cite{wang2022selfconsistency}, least-to-most decomposition \cite{zhou2022least}, and tree-based search over thoughts \cite{yao2023tot}, improve outcomes by exploring multiple reasoning paths. Program-of-thoughts and tool-based decomposition further separate symbolic computation from textual reasoning \cite{chen2022pot,gao2023pal}.
+
+Despite this progress, mainstream reporting remains dominated by final-answer metrics. This leaves unresolved whether stronger performance reflects robust abstraction or brittle completion heuristics.
+
+\subsection{Prompt Sensitivity and Robustness}
+Prompt phrasing can significantly influence predictions in few-shot and instruction settings \cite{zhao2021calibrate,min2022rethinking}. Behavioral test frameworks and adversarial benchmarks show substantial brittleness under input perturbations \cite{ribeiro2020checklist,si2023promptbench}. In high-stakes domains, this sensitivity creates reliability risks even when aggregate accuracy appears strong.
+
+\subsection{Faithfulness and Explanation Reliability}
+Generated rationales can be persuasive yet unfaithful to latent computation \cite{turpin2023unfaithful,lanham2023faithful}. This motivates an evaluation view in which reasoning traces are treated as observable behavior requiring stress tests, rather than direct proof of mechanism.
+
+\subsection{LLMs as Cognitive Models}
+CogMI research increasingly studies LLMs as computational objects for understanding abstraction, planning, and language-mediated reasoning \cite{binz2023using,bubeck2023sparks}. A stability-centric lens complements this direction by operationalizing whether reasoning processes generalize across equivalent representational forms.
+
+\section{Framework and Definitions}
+Let $x$ be a prompt, $y$ the gold answer, and $f$ an LLM with CoT output $r=f_{\mathrm{cot}}(x)$ and final answer $\hat{y}=f_{\mathrm{ans}}(x)$. Let $\mathcal{P}$ be a set of semantic perturbation operators where each $p\in\mathcal{P}$ preserves task meaning. For each operator, $x^p=p(x)$ produces trajectory $r^p$ and answer $\hat{y}^p$.
+
+\subsection{Cognitive Stability}
+We operationalize cognitive stability as the joint preservation of: (i) final-task correctness, (ii) semantic coherence with source constraints, and (iii) trajectory consistency under perturbation. Define trajectory similarity $S(r,r^p)\in[0,1]$ using semantic and structural alignment. Per-example collapse is:
+\begin{equation}
+ c_i = 1 - \frac{1}{|\mathcal{P}_i|}\sum_{p\in\mathcal{P}_i} S(r_i,r_i^p).
+\end{equation}
+Dataset-level collapse is:
+\begin{equation}
+ \mathrm{CCI}=\frac{1}{N}\sum_{i=1}^{N} c_i.
+\end{equation}
+Lower CCI indicates better cognitive stability.
+
+To separate perturbation timing effects (H3), we partition operators by insertion position $\pi\in\{\mathrm{begin},\mathrm{middle},\mathrm{end}\}$ and define:
+\begin{equation}
+\mathrm{CCI}_{\pi}=\frac{1}{N}\sum_{i=1}^{N}\left(1-\frac{1}{|\mathcal{P}_i^{\pi}|}\sum_{p\in\mathcal{P}_i^{\pi}}S(r_i,r_i^p)\right).
+\end{equation}
+
+\subsection{Answer Preservation and Decoupling}
+Answer-preservation accuracy under perturbation is:
+\begin{equation}
+ \mathrm{APA}=\frac{1}{N}\sum_{i=1}^{N}\mathbb{1}[\hat{y}_i = \hat{y}_i^p].
+\end{equation}
+Answer-process decoupling is captured by:
+\begin{equation}
+ \Delta_{\mathrm{decouple}} = \mathrm{APA} - (1-\mathrm{CCI}).
+\end{equation}
+High positive $\Delta_{\mathrm{decouple}}$ indicates answers are preserved more than reasoning structure.
+
+\subsection{Additional Behavioral Metrics}
+To avoid over-reliance on endpoint accuracy, we evaluate five dimensions:
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Final Answer Accuracy (FAA)}: correctness of final answer under original and perturbed conditions.
+\item \textbf{Reasoning Consistency (RC)}: trajectory-level consistency score $S(r,r^p)$ and CCI.
+\item \textbf{Semantic Drift (SD)}: divergence from original problem constraints, measured by contradiction and omitted-constraint rates.
+\item \textbf{Recovery Ability (RA)}: rate at which models detect and repair injected wrong/contradictory intermediate steps.
+\item \textbf{Faithfulness Risk (FR)}: rate of post-hoc justification behavior, estimated by verifier disagreement between trajectory claims and inferred answer support.
+\end{enumerate}
+
+\subsection{Perturbation Sensitivity Concentration}
+To quantify whether collapse is concentrated in a few perturbation types, let $c_k$ be class-wise CCI and define normalized sensitivity $q_k=c_k/\sum_j c_j$. We measure concentration with entropy:
+\begin{equation}
+ H_{\mathrm{pert}} = -\sum_k q_k \log q_k.
+\end{equation}
+Lower entropy indicates collapse is dominated by specific perturbation classes.
+
+\section{Semantic Perturbation Taxonomy and Quality Control}
+Table~\ref{tab:taxonomy} defines six perturbation families.
+
+\begin{table*}[!t]
+\caption{Semantic Perturbation Taxonomy for CoT Stability Testing}
+\label{tab:taxonomy}
+\centering
+\begin{tabular}{p{2.2cm}p{4.9cm}p{4.9cm}p{2.8cm}}
+\toprule
+Category & Transformation Rule & Example & Failure Mode Probed \\
+\midrule
+Lexical paraphrase & Replace non-critical terms with semantic equivalents while preserving entities and operators & ``therefore''$\rightarrow$``thus'', ``purchase''$\rightarrow$``buy'' & Surface-form overreliance \\
+Semantic distractor & Insert semantically irrelevant but plausible statements & neutral contextual sentence in QA stem & Attention dilution \\
+Intermediate wrong step & Inject one plausible but incorrect intermediate reasoning statement & incorrect algebra step later corrected by model & Reasoning self-correction capacity \\
+Skipped step & Remove one logically required intermediate step & omission between premise and conclusion & Inferential completion robustness \\
+Contradictory evidence & Add conflicting evidence while retaining original gold target & one premise contradicts earlier given fact & Conflict handling under semantic tension \\
+Unit/value change & Modify units or numeric values in controlled ways & km$\leftrightarrow$m, value offset in arithmetic condition & Mathematical and symbolic sensitivity \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+Random typos and superficial noise are excluded as primary perturbations because they probe input corruption rather than semantic reasoning stability.
+
+\subsection{Semantic Equivalence Assurance}
+Perturbations are accepted only if they pass three filters:
+\begin{enumerate}[leftmargin=*]
+\item \textbf{Constraint preservation}: extracted entities, quantities, and relations match original constraints.
+\item \textbf{Answer invariance check}: a verifier model predicts unchanged gold answer under deterministic decoding.
+\item \textbf{Human spot audit}: random sample review for semantic drift and hidden ambiguity.
+\end{enumerate}
+
+\begin{figure}[!t]
+\centering
+\fbox{\begin{minipage}{0.47\textwidth}
+\small
+\textbf{Perturbation QA Flow}\
+Original prompt $\rightarrow$ candidate rewrite $\rightarrow$ constraint checker \\
+$\rightarrow$ answer-invariance verifier $\rightarrow$ human spot audit \\
+$\rightarrow$ accepted perturbation pool
+\end{minipage}}
+\caption{Quality-control flow to ensure perturbations preserve task semantics.}
+\label{fig:qa-flow}
+\end{figure}
+
+\section{Experimental Protocol}
+\subsection{Benchmarks}
+The protocol targets benchmarks with complementary reasoning demands:
+\begin{itemize}[leftmargin=*]
+\item \textbf{Logical-symbolic reasoning}: GSM8K and MATH \cite{cobbe2021gsm8k,hendrycks2021math}.
+\item \textbf{Semantic reasoning}: CommonsenseQA and StrategyQA \cite{talmor2019commonsenseqa,talmor2020strategyqa}.
+\item \textbf{Multimodal reasoning}: MM-CoT style visual-question reasoning tasks for models that expose multimodal CoT traces.
+\end{itemize}
+
+\begin{table}[!t]
+\caption{Benchmark Coverage and Reasoning Characteristics}
+\label{tab:benchmarks}
+\centering
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lccc}
+\toprule
+Benchmark & Primary Reasoning Type & Typical Output & Perturbation Stress \\
+\midrule
+GSM8K/MATH & Logical-symbolic & Numeric/formula & Unit/value, skipped-step, wrong-step \\
+CommonsenseQA/StrategyQA & Semantic/multi-hop & Choice/boolean/short text & Lexical paraphrase, distractor, contradiction \\
+MM-CoT-style tasks & Visual-linguistic binding & Choice/free-form & Contradiction, distractor, middle-chain edits \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\subsection{Model Families}
+The framework is model-agnostic. Recommended model panel spans open and closed systems to capture training and alignment diversity \cite{openai2023gpt4,anthropic2024claude,gemini2024,llama32024,qwen22024,guo2025deepseekr1}.
+
+\begin{table}[!t]
+\caption{Representative Model Panel for Evaluation}
+\label{tab:model-panel}
+\centering
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lcc}
+\toprule
+Model Family & Access Mode & Motivation \\
+\midrule
+GPT-4o / GPT-4.1 class & API (closed) & Strong baseline reasoning quality \\
+Claude 3.5/3.7 Sonnet class & API (closed) & Alternative alignment and decoding behavior \\
+Gemini 1.5/2.0 class & API (closed) & Long-context and multimodal lineage \\
+Llama-3.1/3.3 class & Open weights & Reproducibility and ablation flexibility \\
+Qwen-2 class & Open weights & Competitive open reasoning performance \\
+DeepSeek-R1 class & Open/API & RL-based reasoning specialization \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\subsection{Perturbation Injection Position Design}
+For each example, we generate equivalent perturbations at three positions: beginning (problem framing), middle (intermediate chain segment), and end (final consolidation prompt). Position-balanced sampling is required for direct H3 testing.
+
+\subsection{Inference Controls}
+To separate stochasticity from robustness effects, all conditions are run under:
+\begin{itemize}[leftmargin=*]
+\item Deterministic decoding ($T=0$) and stochastic decoding ($T=0.7$).
+\item Fixed prompt scaffolds and system instructions across original and perturbed forms.
+\item Three random seeds per condition for confidence intervals.
+\item Consistent token budgets and stop sequences.
+\end{itemize}
+
+\subsection{Pipeline}
+Fig.~\ref{fig:pipeline} summarizes the full pipeline.
+
+\begin{figure}[!t]
+\centering
+\fbox{\begin{minipage}{0.47\textwidth}
+\small
+\textbf{Evaluation Pipeline}\
+1) Sample $(x,y)$ from benchmark \\
+2) Generate and validate perturbations $\{x^p\}$ \\
+3) Query model on $x$ and each $x^p$ \\
+4) Extract CoT trajectories and answers \\
+5) Compute CCI, APA, and class-wise collapse \\
+6) Aggregate by model/benchmark and run statistics
+\end{minipage}}
+\caption{End-to-end cognitive stability evaluation workflow.}
+\label{fig:pipeline}
+\end{figure}
+
+\section{Metrics and Statistical Analysis}
+\subsection{Trajectory Similarity Function}
+We define
+\begin{equation}
+S=\alpha S_{\mathrm{embed}} + \beta S_{\mathrm{step}} + \gamma S_{\mathrm{logic}},\quad \alpha+\beta+\gamma=1,
+\end{equation}
+where:
+\begin{itemize}[leftmargin=*]
+\item $S_{\mathrm{embed}}$: semantic embedding similarity between trajectory sentences.
+\item $S_{\mathrm{step}}$: alignment score over decomposed reasoning steps.
+\item $S_{\mathrm{logic}}$: consistency of inferred claims with extracted constraints.
+\end{itemize}
+
+\subsection{Uncertainty and Significance}
+For each metric, we report bootstrap confidence intervals (10,000 resamples) and paired tests between original and perturbed conditions. Multiple comparison correction is applied across perturbation classes using Benjamini-Hochberg FDR control.
+
+\subsection{Calibration-Aware Stability}
+In settings with model confidence proxies, we estimate whether confidence remains calibrated when reasoning collapses. Let $u_i$ be confidence and $e_i$ error under perturbation. We report expected calibration error on perturbed subsets and conditional calibration when $c_i$ exceeds a collapse threshold.
+
+\section{Illustrative Case Study and Qualitative Diagnostics}
+To make trajectory-level collapse concrete, Table~\ref{tab:case-study} presents an illustrative mini-case with one arithmetic prompt and two semantically equivalent perturbations. In this example, answers remain unchanged but reasoning pathways diverge materially, yielding non-trivial collapse.
+
+\begin{table*}[!t]
+\caption{Illustrative Decoupling Case: Stable Answer, Unstable Reasoning}
+\label{tab:case-study}
+\centering
+\begin{tabular}{p{2.0cm}p{4.7cm}p{4.8cm}p{2.4cm}}
+\toprule
+Condition & Prompt Form & CoT Summary & Outcome \\
+\midrule
+Original & Narrative arithmetic statement with two constraints & Correct decomposition into variables and elimination steps & Correct answer \\
+Perturbation A (paraphrase) & Same constraints in passive voice and reordered clauses & Introduces unnecessary intermediate variable, recovers later & Correct answer \\
+Perturbation B (distractor) & Original statement plus irrelevant context sentence & Starts with distractor analysis, then switches to heuristic shortcut & Correct answer \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+This case highlights why answer-only scoring is insufficient. Behavioral reliability depends on the stability of intermediate reasoning trajectories, not merely endpoint correctness.
+
+\begin{figure}[!t]
+\centering
+\fbox{\begin{minipage}{0.47\textwidth}
+\small
+\textbf{Figure Slot: Accuracy-CCI Decoupling Plot}\
+Scatter with x-axis = perturbed accuracy, y-axis = CCI, color = model family.\
+Upper-right region indicates strong decoupling risk.
+\end{minipage}}
+\caption{Recommended visualization for answer-process decoupling across models.}
+\label{fig:decoupling}
+\end{figure}
+
+\section{Results Reporting Template}
+\begin{table*}[!t]
+\caption{Primary Reporting Table (Populate with Measured Values)}
+\label{tab:main-results}
+\centering
+\begin{tabular}{l l c c c c c c c}
+\toprule
+Model & Benchmark & Clean FAA (\%) & Perturbed FAA (\%) & RC/CCI ($\downarrow$) & SD ($\downarrow$) & RA (\%) & FR ($\downarrow$) & $\Delta_{\mathrm{decouple}}$ \\
+\midrule
+Model A & GSM8K/MATH & TBD & TBD & TBD & TBD & TBD & TBD & TBD \\
+Model A & CommonsenseQA/StrategyQA & TBD & TBD & TBD & TBD & TBD & TBD & TBD \\
+Model A & MM-CoT-style & TBD & TBD & TBD & TBD & TBD & TBD & TBD \\
+\midrule
+Model B & GSM8K/MATH & TBD & TBD & TBD & TBD & TBD & TBD & TBD \\
+Model B & CommonsenseQA/StrategyQA & TBD & TBD & TBD & TBD & TBD & TBD & TBD \\
+Model B & MM-CoT-style & TBD & TBD & TBD & TBD & TBD & TBD & TBD \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\begin{table}[!t]
+\caption{Perturbation-Class Ablation Template}
+\label{tab:ablation}
+\centering
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lcccccc}
+\toprule
+Model & Lexical & Distractor & Wrong Step & Skipped Step & Contradiction & Unit/Value \\
+\midrule
+Model A (CCI) & TBD & TBD & TBD & TBD & TBD & TBD \\
+Model B (CCI) & TBD & TBD & TBD & TBD & TBD & TBD \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{table}[!t]
+\caption{Perturbation Position Effect Template (for H3)}
+\label{tab:position-effect}
+\centering
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{lccc}
+\toprule
+Model & $\mathrm{CCI}_{\mathrm{begin}}$ & $\mathrm{CCI}_{\mathrm{middle}}$ & $\mathrm{CCI}_{\mathrm{end}}$ \\
+\midrule
+Model A & TBD & TBD & TBD \\
+Model B & TBD & TBD & TBD \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\begin{table}[!t]
+\caption{Human Audit Rubric for Perturbation Validity}
+\label{tab:rubric}
+\centering
+\resizebox{\columnwidth}{!}{%
+\begin{tabular}{p{2.0cm}p{5.4cm}p{1.4cm}}
+\toprule
+Criterion & Description & Scale \\
+\midrule
+Semantic equivalence & Does the rewritten prompt preserve all core constraints? & 1--5 \\
+Ambiguity injection & Did the perturbation introduce unintended ambiguity? & 1--5 \\
+Distractor neutrality & Are added distractors truly irrelevant to the gold answer? & 1--5 \\
+Linguistic naturalness & Is the perturbation grammatical and plausible? & 1--5 \\
+\bottomrule
+\end{tabular}}
+\end{table}
+
+\section{Comprehensive Experimental Plan}
+This section provides a complete plan for a full empirical study intended for direct execution. The design emphasizes statistical rigor, reproducibility, and clear separation between reasoning quality and reasoning stability.
+
+\subsection{Sampling and Power Planning}
+For each benchmark, we recommend stratified sampling by problem difficulty and answer type. Let $n_b$ denote per-benchmark sample size and $m$ the number of perturbations per sample. In pilot settings, moderate values (for example, $n_b\in[500,2000]$ and $m\in[6,12]$) can produce stable CCI estimates. In final studies, the target should be based on detectable effect size for paired collapse differences between models:
+\begin{equation}
+n \approx \left(\frac{z_{1-\alpha/2}+z_{1-\beta}}{d/\sigma}\right)^2,
+\end{equation}
+where $d$ is the expected paired mean difference in CCI and $\sigma$ the standard deviation of paired differences.
+
+\subsection{Prompting Regimes}
+To isolate trajectory stability effects, run at least three prompting regimes:
+\begin{itemize}[leftmargin=*]
+\item \textbf{Vanilla CoT}: direct ``think step by step'' style prompting.
+\item \textbf{Structured CoT}: explicit numbered-step scaffolds.
+\item \textbf{Self-consistent CoT}: multiple trajectories with answer voting \cite{wang2022selfconsistency}.
+\end{itemize}
+Comparing these regimes tests whether deliberate decoding improves stability or merely improves answer robustness.
+
+\subsection{Trajectory Parsing and Canonicalization}
+Raw trajectories often vary in verbosity and formatting. We therefore canonicalize trajectories before similarity scoring:
+\begin{enumerate}[leftmargin=*]
+\item Segment into atomic reasoning steps.
+\item Normalize equations, variable names, and unit expressions.
+\item Remove stylistic fillers that do not alter semantics.
+\item Convert each step to proposition triples when possible.
+\end{enumerate}
+This reduces confounding from style and improves comparability across model families.
+
+\subsection{Human Evaluation Layer}
+Automatic metrics should be supplemented with human auditing for a subset of samples. We recommend dual-annotator scoring on semantic equivalence and trajectory coherence, followed by adjudication. Inter-annotator reliability can be reported with Cohen's $\kappa$ for categorical labels and Krippendorff's $\alpha$ for ordinal rubric scores.
+
+\begin{table*}[!t]
+\caption{Execution Checklist for a Full Cognitive-Stability Study}
+\label{tab:execution-checklist}
+\centering
+\begin{tabular}{p{2.1cm}p{4.8cm}p{5.2cm}p{2.2cm}}
+\toprule
+Phase & Required Artifacts & Validation Step & Output \\
+\midrule
+Data setup & Benchmark splits, metadata, answer normalizers & Unit tests for answer normalization and parser consistency & Reproducible dataset package \\
+Perturbation generation & Rewrite operators, QA filters, semantic constraints & Spot-audit pass rate, invariance checks, rejection logs & Approved perturbation pool \\
+Model inference & Prompt templates, decoding configs, run seeds & Seed reproducibility and API retry/timeout policy checks & Raw trajectory and answer logs \\
+Metric computation & Similarity modules, CCI/APA scripts, bootstrap tools & Sanity checks on toy cases and edge-case regression tests & Metric tables with confidence intervals \\
+Statistical analysis & Paired test scripts, FDR correction, effect-size summaries & Replication of key contrasts from independent reruns & Final significance and effect-size report \\
+Human audit & Annotation guide, rubric sheets, adjudication protocol & Reliability metrics ($\kappa$, $\alpha$) and disagreement analysis & Audited subset and qualitative findings \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\section{Extended Analyses}
+\subsection{Cross-Benchmark Transfer of Stability}
+An important question is whether stability generalizes across task domains. Define model-level stability profiles as vectors of class-wise CCI values. We then compute cross-benchmark profile correlations to test whether a model that is stable on arithmetic remains stable on commonsense and multi-hop tasks.
+
+\subsection{Difficulty-Conditioned Collapse}
+CCI should be stratified by benchmark difficulty bins. If collapse increases super-linearly with difficulty, the model may rely on brittle shortcuts in complex cases. Difficulty-conditioned curves provide actionable diagnostics for curriculum design and post-training interventions.
+
+\subsection{Decoding-Temperature Sensitivity}
+Stability can change under stochastic decoding. We define temperature sensitivity as:
+\begin{equation}
+\Delta_T = \mathrm{CCI}_{T=0.7}-\mathrm{CCI}_{T=0.0}.
+\end{equation}
+Large $\Delta_T$ indicates trajectory instability driven by decoding variance rather than semantic perturbation alone.
+
+\subsection{Longitudinal Stability Across Model Versions}
+API models evolve over time. For deployment-relevant claims, rerun the same protocol at regular intervals and compute version drift:
+\begin{equation}
+D_{v_1\to v_2}=\left|\mathrm{CCI}_{v_2}-\mathrm{CCI}_{v_1}\right|.
+\end{equation}
+This makes robustness claims robust to silent backend updates.
+
+\begin{figure}[!t]
+\centering
+\fbox{\begin{minipage}{0.47\textwidth}
+\small
+\textbf{Figure Slot: Difficulty-Conditioned Collapse Curves}\\
+Plot CCI against difficulty percentile for each model.\\
+Steeper slope indicates worsening reasoning stability under harder instances.
+\end{minipage}}
+\caption{Recommended diagnostic for identifying collapse growth with problem difficulty.}
+\label{fig:difficulty-cci}
+\end{figure}
+
+\subsection{Intervention Studies}
+The framework also supports targeted interventions and ablations:
+\begin{itemize}[leftmargin=*]
+\item \textbf{Data augmentation}: train with semantic perturbations and evaluate CCI reduction.
+\item \textbf{Reasoning-format control}: enforce canonical step structure to reduce stylistic variance.
+\item \textbf{Retrieval grounding}: inject external facts and test if distractor sensitivity declines.
+\item \textbf{Verifier reranking}: rerank candidate trajectories by logic-consistency score.
+\end{itemize}
+These interventions can be compared with standardized effect sizes to quantify practical gains.
+
+\section{Implementation and Reproducibility Notes}
+\subsection{Logging Schema}
+Each model call should log: benchmark ID, perturbation class, prompt hash, decoding configuration, raw trajectory, normalized trajectory, parsed answer, and timestamp. This schema enables full traceability and post-hoc auditing.
+
+\subsection{Failure Taxonomy for Error Analysis}
+We recommend categorizing failures into six types: arithmetic slip, premise omission, distractor capture, symbol mapping error, contradiction insertion, and unsupported leap. Reporting failure composition reveals whether interventions reduce specific instability modes.
+
+\begin{table*}[!t]
+\caption{Failure Taxonomy and Suggested Diagnostic Signals}
+\label{tab:failure-taxonomy}
+\centering
+\begin{tabular}{p{2.4cm}p{4.3cm}p{4.8cm}p{2.8cm}}
+\toprule
+Failure Type & Observable Pattern in CoT & Likely Cause & Suggested Mitigation \\
+\midrule
+Arithmetic slip & Correct plan but incorrect intermediate arithmetic operation & Computation error in textual reasoning & Program-aided execution or verifier checks \\
+Premise omission & One constraint never used in trajectory & Attention bottleneck or compression bias & Constraint checklist prompts \\
+Distractor capture & Early steps focus on irrelevant sentence & Salience misallocation under noise & Distractor-aware training augmentation \\
+Symbol mapping error & Wrong variable assignment or equation translation & Weak symbolic grounding & Symbolic canonicalization and equation parsers \\
+Contradiction insertion & Step conflicts with previous claim & Trajectory drift under long reasoning chains & Step-to-step consistency verifier \\
+Unsupported leap & Jump to answer without justified derivation & Heuristic shortcutting & Minimum-justification decoding constraints \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\subsection{Compute and Cost Reporting}
+For transparent comparison, include token usage, wall-clock runtime, and estimated monetary cost by model and benchmark. Stability improvements that require disproportionate compute may be impractical for deployment.
+
+\subsection{Recommended Open-Science Package}
+At camera-ready, release:
+\begin{itemize}[leftmargin=*]
+\item perturbation generator code and validation scripts,
+\item metric implementation and statistical notebooks,
+\item exact prompt templates and parser definitions,
+\item and benchmark split manifests with hash checksums.
+\end{itemize}
+These artifacts materially improve replicability across labs.
+
+\section{Practical Guidance for Deployment Contexts}
+\subsection{High-Stakes Usage}
+In healthcare, legal decision support, and educational assessment, incorrect intermediate reasoning can undermine user trust even when final answers are occasionally correct. We recommend threshold-based deployment policies combining perturbed accuracy and CCI targets.
+
+\subsection{Human-AI Interface Design}
+Interfaces should expose uncertainty and stability cues rather than only final answers. Example cues include perturbation-robustness badges, trajectory variance summaries, and links to alternative reasoning paths.
+
+\subsection{Governance and Monitoring}
+Operational monitoring should track CCI drift over time, per domain, and per user segment. A sudden rise in collapse can indicate model regressions or domain shifts not visible in headline accuracy.
+
+\section{Benchmark-Specific Protocol Recipes}
+To support consistent replication across laboratories, this section provides benchmark-specific protocol recipes. Each recipe defines perturbation priorities, answer parsing rules, and common error signatures.
+
+\subsection{GSM8K Recipe}
+For GSM8K, prioritize unit/value changes, intermediate wrong-step injections, and distractor insertion. Many failures arise from arithmetic slips and omission of one textual constraint. Normalize final numeric answers with unit stripping and optional simplification for fractional formats.
+
+\subsection{MATH Recipe}
+For MATH, prioritize unit/value edits, skipped-step perturbations, and contradictory evidence around equation constraints. Parsing should support equivalent algebraic forms and normalized expressions. Because trajectories are often long, step-level canonicalization is critical to avoid mistaking stylistic verbosity for semantic divergence.
+
+\subsection{CommonsenseQA Recipe}
+For CommonsenseQA, lexical paraphrase, semantic distractor, and contradictory evidence perturbations are especially informative. Since outputs are multiple-choice, answer parsing is straightforward; however, rationale stability remains non-trivial and often exhibits latent category drift despite unchanged options.
+
+\subsection{StrategyQA Recipe}
+For StrategyQA, contradictory evidence, semantic distractor, and skipped-step perturbations are high-yield stressors. Multi-hop decomposition should be parsed into evidence claims and linking assumptions, enabling targeted analysis of where trajectories diverge.
+
+\subsection{MM-CoT-Style Recipe}
+For multimodal CoT tasks, apply lexical paraphrase and contradiction perturbations to textual question/context fields, and apply controlled textual distractors tied to image descriptions without changing the gold label. Compare text-only and multimodal variants of the same item where feasible to quantify visual-linguistic stability gaps.
+
+\begin{table*}[!t]
+\caption{Benchmark-Specific Configuration Guide}
+\label{tab:benchmark-recipes}
+\centering
+\begin{tabular}{p{1.8cm}p{2.4cm}p{3.8cm}p{3.9cm}p{2.9cm}}
+\toprule
+Benchmark & Priority Perturbations & Answer Normalization Rule & Typical Trajectory Failure Pattern & Suggested Auxiliary Check \\
+\midrule
+GSM8K & Unit/value, wrong-step, distractor & Normalize numeric strings, fractions, and units & Correct setup followed by arithmetic slip in final steps & Program-aided arithmetic verifier \\
+MATH & Unit/value, skipped-step, contradiction & Canonicalize algebraic equivalence classes & Equation mapping drift and unsupported algebraic jump & Symbolic equivalence checker \\
+CommonsenseQA & Lexical paraphrase, distractor, contradiction & Option-letter and option-text consistency check & Stable answer with unstable rationale category framing & Rationale semantic clustering audit \\
+StrategyQA & Contradiction, distractor, skipped-step & Boolean normalization with entailment check & Premise omission and chain-link reversal in multi-hop reasoning & Evidence-graph consistency test \\
+MM-CoT-style & Lexical paraphrase, contradiction, middle-chain edits & Option/free-form normalization with rationale marker checks & Visual evidence ignored or overwritten by textual shortcut & Image-evidence alignment verifier \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\section{Operationalization for Real-World Pipelines}
+Beyond benchmark reporting, organizations need practical criteria for adopting stability tests in deployment pipelines. We outline an operational lifecycle that can be integrated with existing model-evaluation governance.
+
+\subsection{Pre-Deployment Gate}
+Before deployment, evaluate candidate models on a domain-adapted perturbation suite and require minimum thresholds for perturbed accuracy and maximum thresholds for CCI. Models failing either threshold are blocked pending remediation.
+
+\subsection{Canary and Staged Rollout}
+During staged rollout, monitor online prompts sampled into a perturbation shadow-evaluation service. Estimate rolling CCI and answer-preservation trends. If drift exceeds policy thresholds, automatically roll back to the previous stable model version.
+
+\subsection{Incident Response Playbook}
+When stability incidents are detected, triage should answer four questions: Which perturbation classes spiked? Which domains were affected? Did confidence calibration degrade? Did failures cluster by user segment or prompt length? This workflow enables faster root-cause analysis than accuracy-only monitoring.
+
+\begin{figure}[!t]
+\centering
+\fbox{\begin{minipage}{0.47\textwidth}
+\small
+\textbf{Figure Slot: Stability Operations Dashboard}\\
+Panels: rolling CCI, perturbed accuracy, class-wise collapse heatmap, and drift alerts by model version.
+\end{minipage}}
+\caption{Suggested production dashboard for continuous cognitive-stability monitoring.}
+\label{fig:ops-dashboard}
+\end{figure}
+
+\subsection{Policy-Oriented Reporting}
+For governance boards and auditors, stability reports should include: metric definitions, sampling policies, confidence intervals, drift alarms, and remediation actions. This supports transparent accountability and traceable safety decisions.
+
+\section{Extended Reproducibility Appendix}
+This section provides additional implementation detail intended to minimize ambiguity for replication teams.
+
+\subsection{Reference Prompt Templates}
+A recommended template set includes: baseline CoT prompt, constrained-step CoT prompt, self-consistency prompt, and verifier prompt. Prompt templates should be version-controlled, hash-logged, and frozen for each evaluation run.
+
+\subsection{Deterministic Parsing Rules}
+Answer extraction should use deterministic regex-plus-parser pipelines per benchmark with explicit fallbacks. All fallback paths should be logged so that downstream error analysis can quantify parser-induced noise.
+
+\subsection{Versioning and Artifact Management}
+Each experiment package should include immutable manifests for prompts, model identifiers, benchmark split hashes, and perturbation operator versions. We recommend semantic versioning for all pipeline components and immutable snapshot IDs for final reports.
+
+\begin{table*}[!t]
+\caption{Minimal Artifact Bundle for Third-Party Reproduction}
+\label{tab:artifact-bundle}
+\centering
+\begin{tabular}{p{2.4cm}p{5.0cm}p{5.2cm}p{1.8cm}}
+\toprule
+Artifact Type & Required Contents & Verification Method & Mandatory \\
+\midrule
+Prompt package & All system/user templates with version hashes and token budgets & Hash match against manifest & Yes \\
+Perturbation package & Operator definitions, acceptance filters, rejection logs, audit samples & Operator unit tests and audit agreement report & Yes \\
+Inference logs & Raw model outputs, normalized outputs, parser traces, decoding configs & Deterministic replay on sampled subset & Yes \\
+Metric code & CCI/APA scripts, bootstrap routines, hypothesis test scripts & Recomputed table match within tolerance & Yes \\
+Statistical report & Effect sizes, corrected p-values, confidence intervals, assumptions checks & Independent recomputation from logs & Yes \\
+Cost/compute report & Token counts, runtime, API errors/retries, hardware metadata & Cross-check with run metadata and billing logs & Recommended \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\section{Discussion}
+\subsection{Implications for Cognitive Machine Intelligence}
+Cognitive stability extends current LLM evaluation practice by introducing process-level robustness as a first-class target. A model that is accurate but unstable may be unsuitable for domains requiring explanation reliability, decision traceability, or robust human oversight.
+
+\subsection{Trust and Human-AI Collaboration}
+When users rely on model-provided reasoning, instability can undermine trust calibration. Stable trajectories improve predictability, facilitate auditing, and support safer mixed-initiative interaction in education, healthcare, and policy workflows.
+
+\subsection{Engineering Implications}
+The framework can guide training and post-training design choices:
+\begin{itemize}[leftmargin=*]
+\item data augmentation with semantic perturbations,
+\item stability-aware reward signals in RL fine-tuning,
+\item retrieval grounding to reduce distractor sensitivity,
+\item and test-time consistency checks for trajectory divergence.
+\end{itemize}
+
+\section{Threats to Validity}
+\textbf{Construct validity.} Trajectory text is an imperfect proxy for latent reasoning; faithfulness concerns remain.\
+\textbf{Internal validity.} Perturbation generation can leak subtle semantic drift despite QA filters.\
+\textbf{External validity.} Results may vary across proprietary APIs, model revisions, and domain transfer settings.\
+\textbf{Statistical validity.} Multiple comparisons across perturbation classes require correction and sufficient sample sizes.
+
+\section{Ethical and Reproducibility Considerations}
+The protocol avoids releasing harmful prompt manipulations and focuses on benign semantic transformations. All perturbation scripts, audit sheets, and metric code should be versioned and released with seeds and decoding settings for reproducibility. Where API terms limit full reproduction, authors should publish normalized prompt templates, response parsers, and aggregate logs that preserve privacy and policy compliance.
+
+\section{Conclusion}
+This paper introduced a comprehensive framework for evaluating cognitive stability of chain-of-thought reasoning in LLMs under semantic perturbation. The Cognitive Collapse Index, together with answer-preservation and decoupling metrics, provides a practical route to assess robustness beyond final-answer accuracy. By aligning evaluation with process-level reliability, the framework advances CogMI goals in trustworthy reasoning, cognitive benchmarking, and human-centered AI deployment.
+
+\section*{Data and Code Availability}
+All code required to reproduce perturbation generation, evaluation metrics, and statistical analyses should be released at camera-ready time, subject to model provider terms and benchmark licenses.
+
+\section*{Appendix A: Prompting and Parsing Blueprints}
+This appendix provides implementation blueprints that can be directly adapted for replication.
+
+\textbf{Blueprint A (baseline CoT prompt).} The system instruction defines concise reasoning expectations, while the user prompt requests a final answer in a parsable format. A deterministic answer marker such as \texttt{FinalAnswer: <value>} is strongly recommended to reduce parsing ambiguity.
+
+\textbf{Blueprint B (structured CoT prompt).} The prompt enforces a fixed number of reasoning steps with short bullet-like statements. This format tends to improve trajectory canonicalization and supports cleaner step alignment.
+
+\textbf{Blueprint C (self-consistency prompt).} The model is asked to generate multiple independent chains. A voting module determines final answer consensus, while stability analysis compares chain-level divergence under perturbation.
+
+\textbf{Blueprint D (verifier prompt).} A secondary verifier checks whether each reasoning step follows from prior steps and prompt constraints. Verifier disagreement rates can be tracked as an auxiliary stability signal.
+
+\begin{table*}[!t]
+\caption{Concrete Prompt and Parser Blueprint (Implementation Template)}
+\label{tab:prompt-blueprint}
+\centering
+\begin{tabular}{p{1.6cm}p{4.2cm}p{6.1cm}p{2.6cm}}
+\toprule
+Component & Objective & Recommended Structure & Logged Fields \\
+\midrule
+System prompt & Keep style stable across all conditions & Fixed instruction: reason clearly, avoid extra narrative, output final answer marker & Template hash, token count \\
+User prompt (original) & Baseline evaluation input & Benchmark question text plus answer format instruction & Prompt ID, benchmark ID \\
+User prompt (perturbed) & Semantic stability stress-test input & Rewritten prompt preserving constraints and answer space & Perturbation class, operator version \\
+CoT output parser & Extract steps for similarity scoring & Split by numbering, bullet marker, or sentence boundaries; normalize equations & Step count, parse success flag \\
+Answer parser & Ensure deterministic accuracy scoring & Parse \texttt{FinalAnswer:} field with benchmark-specific normalization & Raw answer, normalized answer \\
+Verifier parser & Support logic consistency audit & Extract claim triples and contradiction flags from verifier output & Consistency score, contradiction index \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+\section*{Appendix B: Recommended Reporting Narrative}
+To make final papers comparable, we suggest a standardized reporting narrative:
+\begin{enumerate}[leftmargin=*]
+\item Report clean accuracy, perturbed accuracy, APA, and CCI together for every model-benchmark pair.
+\item Discuss at least one decoupling example where answer is preserved but trajectory collapses.
+\item Provide class-wise ablation and identify the top two perturbation classes causing collapse.
+\item Include uncertainty intervals and corrected significance tests for all major claims.
+\item State failure modes and mitigation opportunities based on taxonomy-level analysis.
+\end{enumerate}
+
+This narrative supports transparent interpretation and avoids overclaiming from accuracy-only results. It also improves cross-paper comparability for CogMI discussions focused on reliable cognitive behavior in AI systems.
+
+\bibliographystyle{IEEEtran}
+\bibliography{references}
+
+\end{document}

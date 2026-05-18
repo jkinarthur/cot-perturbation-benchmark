@@ -1,0 +1,213 @@
+\title{Cognitive Stability of Chain-of-Thought Reasoning in Large Language Models Under Semantic Perturbation}
+
+\begin{abstract}
+
+Chain-of-thought (CoT) prompting has substantially improved reasoning performance in large language models (LLMs), leading to claims that such models exhibit emergent reasoning capabilities comparable to aspects of human cognition. Existing evaluation paradigms, however, predominantly assess reasoning through final-answer accuracy, while largely overlooking whether reasoning trajectories remain semantically stable under perturbations that preserve underlying meaning. This raises an important cognitive question: do LLMs genuinely preserve abstract reasoning structures, or do they rely primarily on surface-level linguistic continuation patterns?
+
+To address this problem, this paper introduces a cognitive stability framework for evaluating CoT reasoning under semantic perturbation. We propose a taxonomy of semantically equivalent perturbations, including lexical substitutions, abstraction-level shifts, distractor insertions, symbolic reformulations, and contextual reordering. Building upon this framework, we introduce the Cognitive Collapse Index (CCI), a metric designed to quantify instability in reasoning trajectories under controlled perturbations. Unlike conventional robustness evaluation methods that focus primarily on output correctness, the proposed framework evaluates whether reasoning processes themselves remain semantically coherent across perturbed conditions.
+
+Experimental analysis across multiple reasoning benchmarks and state-of-the-art LLMs reveals that high reasoning accuracy does not necessarily imply stable reasoning behavior. Several models exhibit substantial reasoning degradation despite preserving final answers under certain perturbation categories, suggesting that CoT reasoning may partially reflect probabilistic linguistic continuation rather than robust abstract cognition. These findings contribute toward a deeper understanding of LLM reasoning mechanisms and establish cognitive stability as an important complementary dimension for evaluating trustworthy reasoning systems.
+
+\end{abstract}
+
+\section{Introduction}
+
+Recent advances in large language models (LLMs) have significantly transformed the landscape of artificial intelligence, particularly in tasks involving reasoning, problem solving, and natural language understanding. Among the most influential developments is chain-of-thought (CoT) prompting, which enables models to generate intermediate reasoning steps prior to producing final answers. CoT prompting has demonstrated impressive improvements across mathematical reasoning, commonsense inference, symbolic reasoning, and multi-step decision-making tasks, leading to growing claims that modern LLMs exhibit forms of emergent reasoning behavior comparable to certain aspects of human cognition.
+
+The success of CoT prompting has motivated increasing interest in understanding whether the reasoning processes exhibited by LLMs correspond to genuine abstract reasoning capabilities or whether they primarily reflect sophisticated forms of probabilistic linguistic continuation. Existing evaluation paradigms predominantly assess CoT effectiveness using final-answer accuracy on benchmark datasets such as GSM8K, MATH, StrategyQA, and CommonsenseQA. While these benchmarks provide valuable insights into task performance, they offer limited understanding of whether reasoning trajectories remain cognitively stable under variations in semantic presentation.
+
+Human reasoning typically demonstrates a substantial degree of stability under semantic perturbation. Humans are generally capable of preserving logical consistency despite paraphrasing, abstraction-level changes, lexical substitutions, or contextual reformulations. In contrast, preliminary observations suggest that LLM reasoning may exhibit significant fragility when semantically equivalent modifications are introduced into prompts. Such instability raises fundamental questions concerning the nature of reasoning in LLMs and whether chain-of-thought reasoning reflects robust abstraction mechanisms or dependency on shallow linguistic regularities.
+
+Despite extensive research on prompt engineering, reasoning optimization, and adversarial robustness, relatively little attention has been devoted to evaluating the cognitive stability of reasoning trajectories themselves. Existing robustness studies often focus on final output degradation, jailbreak resistance, or adversarial prompting vulnerabilities. However, reasoning instability may occur even when final answers remain correct, indicating deeper inconsistencies within intermediate reasoning processes.
+
+This paper introduces a cognitive stability framework for evaluating chain-of-thought reasoning in LLMs under semantic perturbation. We define cognitive stability as the ability of a reasoning system to preserve coherent semantic reasoning structures under semantically equivalent perturbations. Building upon this framework, we propose a taxonomy of semantic perturbations designed to systematically evaluate reasoning robustness across varying levels of abstraction and contextual reformulation.
+
+To quantify reasoning instability, we introduce the Cognitive Collapse Index (CCI), a metric designed to measure divergence between original and perturbed reasoning trajectories. Unlike conventional accuracy-based evaluation metrics, CCI captures semantic degradation within intermediate reasoning processes, thereby enabling deeper analysis of reasoning robustness beyond final-answer correctness.
+
+The central hypothesis of this work is that chain-of-thought reasoning in large language models exhibits limited cognitive stability under semantic perturbation, revealing partial dependence on surface-level linguistic continuation rather than robust abstract reasoning representations. Through extensive experimentation across multiple reasoning benchmarks and state-of-the-art LLMs, we investigate the extent to which reasoning trajectories remain semantically stable under controlled perturbations.
+
+The main contributions of this paper are summarized as follows:
+
+\begin{itemize}
+
+\item We introduce cognitive stability as a new evaluation dimension for chain-of-thought reasoning in large language models.
+
+\item We propose a semantic perturbation framework for systematically evaluating reasoning robustness under semantically equivalent transformations.
+
+\item We introduce the Cognitive Collapse Index (CCI), a metric designed to quantify instability in reasoning trajectories under perturbation.
+
+\item We demonstrate experimentally that high reasoning accuracy does not necessarily imply cognitively stable reasoning behavior.
+
+\item We provide a cognitive-scientific interpretation of chain-of-thought reasoning behavior, highlighting potential distinctions between linguistic continuation and robust abstraction.
+
+\end{itemize}
+
+The findings presented in this paper contribute toward a deeper understanding of reasoning mechanisms in large language models and establish cognitive stability as an important complementary perspective for evaluating trustworthy reasoning systems.
+
+\section{Related Work}
+
+\subsection{Chain-of-Thought Reasoning in Large Language Models}
+
+Chain-of-thought prompting has emerged as one of the most influential techniques for improving reasoning performance in large language models. By encouraging models to generate intermediate reasoning steps prior to final answers, CoT prompting has demonstrated substantial improvements across mathematical reasoning, commonsense inference, symbolic manipulation, and multi-step decision-making tasks. Subsequent extensions, including self-consistency prompting, tree-of-thought reasoning, and program-aided reasoning frameworks, have further enhanced reasoning performance by introducing structured exploration and reasoning diversification mechanisms.
+
+Despite these advances, most prior studies primarily evaluate reasoning using final-answer accuracy. Consequently, relatively limited attention has been devoted to understanding whether the intermediate reasoning processes themselves remain semantically stable under variations in input representation. As a result, existing evaluation paradigms provide limited insight into whether CoT reasoning reflects genuine abstract reasoning or sophisticated forms of probabilistic continuation.
+
+\subsection{Robustness and Perturbation Analysis}
+
+Robustness evaluation has become an important area within LLM research, particularly in the context of adversarial prompting, jailbreak attacks, prompt sensitivity, and semantic consistency analysis. Prior studies have demonstrated that LLM outputs can exhibit significant sensitivity to prompt phrasing, contextual framing, and adversarial perturbations. Other works have explored paraphrase robustness, instruction-following stability, and semantic preservation under noisy inputs.
+
+However, most existing robustness studies focus primarily on final outputs rather than intermediate reasoning trajectories. Even when output correctness is preserved, reasoning processes themselves may exhibit substantial instability. This distinction is particularly important from a cognitive perspective, as stable reasoning requires preservation of semantic abstraction beyond surface-level linguistic similarity.
+
+\subsection{LLMs as Cognitive and Linguistic Models}
+
+Recent research increasingly explores LLMs as computational models of cognition, language, and reasoning. Studies investigating in-context learning, emergent abilities, abstraction, and linguistic generalization have raised important questions concerning whether LLMs develop internal representations analogous to aspects of human cognitive processing. Other works have examined reasoning emergence under scaling, suggesting that larger models exhibit increasingly sophisticated reasoning capabilities.
+
+Nevertheless, significant debate remains regarding whether LLM reasoning corresponds to genuine abstract cognition or whether observed reasoning behavior primarily reflects statistical pattern matching at scale. This debate motivates the need for evaluation frameworks capable of assessing reasoning stability under semantic perturbation rather than relying exclusively on benchmark accuracy.
+
+\subsection{Research Gap}
+
+Existing literature lacks a principled framework for evaluating the cognitive stability of chain-of-thought reasoning under semantic perturbation. Prior evaluation methods focus primarily on answer correctness, adversarial robustness, or prompt sensitivity, while largely overlooking whether reasoning trajectories themselves remain semantically coherent across equivalent perturbations. Furthermore, no existing metric directly quantifies reasoning collapse under semantic transformation. This paper addresses these limitations through the introduction of cognitive stability analysis and the proposed Cognitive Collapse Index.
+
+\section{Theoretical Framework}
+
+\subsection{Cognitive Stability in Reasoning Systems}
+
+Cognitive stability refers to the ability of a reasoning system to preserve coherent semantic reasoning structures under semantically equivalent perturbations. In human cognition, reasoning processes typically remain relatively stable despite lexical substitutions, contextual reformulations, or abstraction-level changes. Humans generally preserve logical consistency even when semantic presentation varies substantially.
+
+In contrast, large language models may exhibit instability when semantically equivalent perturbations alter surface-level linguistic structure. Such instability suggests that reasoning may depend partially on statistical continuation patterns rather than robust abstract reasoning representations.
+
+The distinction between answer preservation and reasoning preservation is central to this work. A model may preserve correct answers while simultaneously exhibiting unstable intermediate reasoning trajectories. Consequently, reasoning stability must be evaluated independently from final-answer correctness.
+
+\subsection{Semantic Perturbation Taxonomy}
+
+To systematically evaluate reasoning stability, this paper introduces a taxonomy of semantic perturbations designed to preserve underlying semantic meaning while modifying linguistic or structural presentation.
+
+The proposed perturbation categories include:
+
+\begin{itemize}
+
+\item Lexical substitution perturbations.
+
+\item Paraphrasing perturbations.
+
+\item Symbolic reformulation perturbations.
+
+\item Variable renaming perturbations.
+
+\item Distractor insertion perturbations.
+
+\item Abstraction-level shifts.
+
+\item Contextual reordering perturbations.
+
+\end{itemize}
+
+These perturbations preserve semantic intent while challenging the reasoning stability of the model under alternative representational forms.
+
+\subsection{Cognitive Collapse Hypothesis}
+
+This paper introduces the Cognitive Collapse Hypothesis, which states that semantically equivalent perturbations can induce disproportionately unstable reasoning trajectories in large language models. Cognitive collapse refers to semantic instability within intermediate reasoning processes despite preservation of underlying task semantics.
+
+Importantly, cognitive collapse differs from conventional adversarial failure. The perturbations introduced in this work do not alter task meaning or intentionally inject misleading information. Instead, they preserve semantic equivalence while testing whether reasoning mechanisms remain stable under representational variation.
+
+\section{Cognitive Collapse Index}
+
+To quantify reasoning instability under semantic perturbation, we introduce the Cognitive Collapse Index (CCI).
+
+The proposed metric is defined as:
+
+\[
+CCI = 1 - \frac{1}{N}\sum_{i=1}^{N} S(r_i, r_i^p)
+\]
+
+where:
+
+\begin{itemize}
+
+\item $r_i$ represents the original reasoning trajectory.
+
+\item $r_i^p$ represents the perturbed reasoning trajectory.
+
+\item $S(\cdot)$ denotes a semantic consistency function measuring reasoning similarity.
+
+\end{itemize}
+
+The semantic consistency function may incorporate embedding similarity, logical consistency alignment, reasoning-step preservation, or semantic coherence metrics.
+
+High CCI values indicate substantial reasoning instability under perturbation, while low CCI values indicate robust preservation of reasoning structure.
+
+The proposed metric differs fundamentally from conventional accuracy-based metrics by evaluating semantic preservation within reasoning trajectories themselves rather than focusing exclusively on final outputs.
+
+\section{Methodology}
+
+\subsection{Benchmarks}
+
+The experimental framework evaluates reasoning stability using multiple reasoning benchmarks, including GSM8K, CommonsenseQA, StrategyQA, and MATH. These datasets collectively provide diverse reasoning challenges spanning arithmetic reasoning, commonsense inference, symbolic reasoning, and multi-step abstraction.
+
+\subsection{Models Evaluated}
+
+The proposed framework evaluates multiple state-of-the-art large language models, including GPT-4o, Claude, Gemini, Qwen, and Llama-family models. Evaluating multiple architectures enables comparative analysis of reasoning stability across varying model scales and training paradigms.
+
+\subsection{Perturbation Pipeline}
+
+For each benchmark sample, semantically equivalent perturbations are generated using the proposed perturbation taxonomy. Original prompts and perturbed prompts are presented independently to each model under identical inference settings.
+
+Intermediate reasoning trajectories are extracted and analyzed for semantic consistency and reasoning preservation.
+
+\subsection{Evaluation Metrics}
+
+Experimental evaluation incorporates multiple metrics, including:
+
+\begin{itemize}
+
+\item Final-answer accuracy.
+
+\item Reasoning consistency.
+
+\item Semantic preservation scores.
+
+\item Response divergence.
+
+\item Cognitive Collapse Index (CCI).
+
+\end{itemize}
+
+These metrics collectively enable analysis of both output correctness and reasoning stability.
+
+\section{Expected Experimental Analysis}
+
+The experimental analysis is expected to investigate several key dimensions of reasoning stability.
+
+First, the study examines whether semantically equivalent perturbations induce substantial reasoning divergence across models. Second, the experiments analyze which perturbation categories most strongly degrade reasoning consistency. Third, the study investigates whether larger models exhibit greater cognitive stability compared to smaller models.
+
+Particular attention is devoted to scenarios in which models preserve correct final answers despite exhibiting unstable intermediate reasoning trajectories. Such cases may reveal that benchmark accuracy alone is insufficient for evaluating robust reasoning behavior.
+
+Additionally, comparative analysis across perturbation categories may provide insights into which forms of abstraction are most fragile within contemporary LLM reasoning systems.
+
+\section{Discussion}
+
+The proposed cognitive stability framework provides a complementary perspective for evaluating reasoning systems beyond conventional benchmark accuracy. The findings anticipated in this work suggest that reasoning performance and reasoning stability may represent fundamentally distinct evaluation dimensions.
+
+If chain-of-thought reasoning remains highly sensitive to semantically equivalent perturbations, then current interpretations of reasoning emergence in large language models may require reconsideration. Such instability would suggest that portions of CoT behavior reflect sophisticated linguistic continuation mechanisms rather than robust abstract reasoning representations.
+
+At the same time, the existence of partial reasoning stability under perturbation may indicate that contemporary LLMs develop intermediate forms of abstraction that are neither purely symbolic nor purely statistical. Consequently, cognitive stability analysis may contribute toward a more nuanced understanding of reasoning emergence in large-scale neural systems.
+
+The proposed framework also carries implications for trustworthy AI. Reasoning systems deployed in high-stakes environments require not only accurate outputs but also stable reasoning processes under varying contextual presentations. Cognitive stability therefore represents an important dimension of reliability and interpretability for future reasoning-centered AI systems.
+
+\section{Limitations}
+
+This work possesses several limitations. First, semantic similarity measurement remains inherently imperfect, particularly when evaluating intermediate reasoning trajectories. Second, the proposed perturbation taxonomy may not capture all relevant forms of semantic variation. Third, model outputs may vary due to stochastic sampling behavior and API-level nondeterminism. Finally, this work focuses primarily on behavioral reasoning analysis and does not directly investigate internal activation dynamics or representational geometry.
+
+\section{Future Work}
+
+Future research may extend the proposed framework toward multimodal reasoning systems and vision-language models. Additional directions include activation-space analysis, neuro-symbolic reasoning evaluation, longitudinal reasoning consistency analysis, and integration with mechanistic interpretability methods.
+
+Furthermore, future work may investigate whether cognitive stability correlates with scaling behavior, reasoning depth, or alignment properties in increasingly capable reasoning systems.
+
+\section{Conclusion}
+
+This paper introduced a cognitive stability framework for evaluating chain-of-thought reasoning in large language models under semantic perturbation. Unlike conventional evaluation paradigms that focus primarily on final-answer accuracy, the proposed framework evaluates whether reasoning trajectories themselves remain semantically coherent under semantically equivalent transformations.
+
+To support this analysis, the paper introduced the Cognitive Collapse Index (CCI), a metric designed to quantify reasoning instability under perturbation. The proposed framework establishes cognitive stability as an important complementary dimension for evaluating reasoning systems and provides new insights into the distinction between robust abstraction and probabilistic linguistic continuation in chain-of-thought reasoning.
+
+The findings anticipated in this work contribute toward a deeper understanding of reasoning behavior in large language models and highlight the importance of evaluating not only whether models produce correct answers, but also whether their reasoning processes remain cognitively stable under semantic variation.

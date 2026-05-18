@@ -1,0 +1,20 @@
+{
+  "H2_decoupling": {
+    "mean_delta_decouple": 0.0
+  },
+  "H3_position_means": {
+    "beginning": 0.0,
+    "end": 0.0,
+    "middle": 0.0
+  },
+  "H3_tests": {
+    "middle_gt_beginning": {
+      "t": NaN,
+      "p": NaN
+    },
+    "middle_gt_end": {
+      "t": NaN,
+      "p": NaN
+    }
+  }
+}

@@ -1,0 +1,5 @@
+Model,Benchmark,Temp,Clean FAA (%),Perturbed FAA (%),RC/CCI (down),SD (down),RA (%),FR (down),Delta_decouple
+mock-baseline,commonsenseqa,0.0,0.0,0.0,0.0,1.0,0.0,0.65,0.0
+mock-baseline,gsm8k,0.0,0.0,0.0,0.0,0.9759,0.0,0.6428,0.0
+mock-baseline,mmcot,0.0,0.0,0.0,0.0,1.0,0.0,0.65,0.0
+mock-baseline,strategyqa,0.0,0.0,0.0,0.0,1.0,0.0,0.65,0.0

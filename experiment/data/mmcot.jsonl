@@ -1,0 +1,2 @@
+{"id":"mmcot_0001","question":"The image shows two apples and one banana. Which fruit appears more often?","gold_answer":"apple","image_path":"images/mock1.png"}
+{"id":"mmcot_0002","question":"The image shows a red car and a blue bike. Which object is blue?","gold_answer":"bike","image_path":"images/mock2.png"}

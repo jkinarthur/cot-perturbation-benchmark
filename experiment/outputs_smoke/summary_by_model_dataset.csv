@@ -1,0 +1,5 @@
+model_name,dataset,temperature,FAA_clean,FAA_perturbed,APA,CCI,SD,RA,FR,Delta_decouple,beginning,end,middle
+mock-baseline,commonsenseqa,0.0,0.0,0.0,1.0,0.0,1.0,0.0,0.65,0.0,0.0,0.0,0.0
+mock-baseline,gsm8k,0.0,0.0,0.0,1.0,0.0,0.9759076707606119,0.0,0.6427723012281835,0.0,0.0,0.0,0.0
+mock-baseline,mmcot,0.0,0.0,0.0,1.0,0.0,1.0,0.0,0.65,0.0,0.0,0.0,0.0
+mock-baseline,strategyqa,0.0,0.0,0.0,1.0,0.0,1.0,0.0,0.65,0.0,0.0,0.0,0.0
